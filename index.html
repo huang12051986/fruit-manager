@@ -1,0 +1,1112 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>水果进销存管理系统</title>
+<style>
+:root {
+  --pri: #4CAF50; --pri-d: #388E3C; --acc: #FF9800; --dan: #f44336;
+  --bg: #f0f2f5; --card: #fff; --txt: #333; --txt2: #666; --txt3: #999;
+  --border: #e0e0e0; --calc: #e8f5e9; --radius: 10px; --shadow: 0 2px 8px rgba(0,0,0,.08);
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background:var(--bg); color:var(--txt); padding-bottom:80px; }
+.header { background:var(--pri); color:#fff; padding:10px 16px; text-align:center; position:sticky; top:0; z-index:100; }
+.header h1 { font-size:17px; font-weight:600; }
+.header .date-row { display:flex; align-items:center; justify-content:center; gap:8px; margin-top:4px; flex-wrap:wrap; }
+.header .date-row input[type=date] { padding:4px 8px; border-radius:6px; border:none; font-size:14px; background:rgba(255,255,255,.9); color:#333; max-width:140px; }
+.date-nav { background:rgba(255,255,255,.2); border:none; color:#fff; width:28px; height:28px; border-radius:50%; font-size:16px; cursor:pointer; line-height:28px; text-align:center; flex-shrink:0; }
+.header .sync-badge { font-size:11px; opacity:.8; display:flex; align-items:center; gap:4px; justify-content:center; margin-top:2px; cursor:pointer; }
+.sync-badge .dot { width:7px; height:7px; border-radius:50%; display:inline-block; }
+.dot.online { background:#a5d6a7; } .dot.offline { background:#ffab40; } .dot.error { background:#ef9a9a; }
+
+.tabs { display:flex; overflow-x:auto; background:#fff; border-bottom:1px solid var(--border); position:sticky; top:112px; z-index:99; -webkit-overflow-scrolling:touch; }
+.tabs button { flex-shrink:0; padding:10px 12px; border:none; background:none; font-size:13px; color:var(--txt2); white-space:nowrap; border-bottom:2px solid transparent; transition:.2s; cursor:pointer; }
+.tabs button.active { color:var(--pri); border-bottom-color:var(--pri); font-weight:600; }
+
+.section { display:none; padding:12px; }
+.section.active { display:block; }
+.card { background:var(--card); border-radius:var(--radius); padding:14px; margin-bottom:12px; box-shadow:var(--shadow); }
+.card h3 { font-size:15px; margin-bottom:10px; color:var(--pri); border-bottom:1px solid var(--border); padding-bottom:8px; }
+.card h4 { font-size:14px; color:var(--txt2); margin:8px 0 6px; }
+
+.row { display:flex; gap:8px; margin-bottom:8px; align-items:center; flex-wrap:wrap; }
+.row>* { flex:1; min-width:60px; }
+label { font-size:12px; color:var(--txt2); display:block; margin-bottom:2px; }
+input, select { width:100%; padding:8px 10px; border:1px solid var(--border); border-radius:6px; font-size:14px; background:#fff; }
+input:focus, select:focus { outline:none; border-color:var(--pri); box-shadow:0 0 0 2px rgba(76,175,80,.15); }
+input[readonly] { background:var(--calc); color:var(--pri-d); font-weight:600; }
+
+.btn { padding:8px 16px; border:none; border-radius:6px; font-size:13px; cursor:pointer; transition:.2s; font-weight:500; }
+.btn-pri { background:var(--pri); color:#fff; }
+.btn-acc { background:var(--acc); color:#fff; }
+.btn-dan { background:var(--dan); color:#fff; }
+.btn-out { background:#fff; color:var(--pri); border:1px solid var(--pri); }
+.btn-sm { padding:4px 10px; font-size:12px; }
+.btn-block { display:block; width:100%; margin-top:8px; }
+.btn:active { opacity:.8; transform:scale(.97); }
+
+.batch { background:#fafafa; border:1px solid var(--border); border-radius:8px; padding:10px; margin-bottom:8px; position:relative; }
+.batch .batch-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; }
+.batch .batch-title { font-size:13px; font-weight:600; color:var(--txt2); }
+.btn-del { width:24px; height:24px; border-radius:50%; background:var(--dan); color:#fff; border:none; font-size:14px; cursor:pointer; line-height:24px; text-align:center; padding:0; }
+
+.result { background:var(--calc); border-radius:8px; padding:10px; margin-top:8px; }
+.result .r-row { display:flex; justify-content:space-between; padding:4px 0; font-size:13px; border-bottom:1px dotted #c8e6c9; }
+.result .r-row:last-child { border:none; }
+.result .r-val { font-weight:600; color:var(--pri-d); }
+
+.tbl { width:100%; border-collapse:collapse; font-size:11px; margin-top:8px; }
+.tbl th,.tbl td { padding:5px 6px; border:1px solid var(--border); text-align:center; }
+.tbl th { background:#f5f5f5; font-weight:600; }
+.tbl td { background:#fff; }
+
+.bottom-bar { position:fixed; bottom:0; left:0; right:0; background:#fff; border-top:1px solid var(--border); padding:8px 12px; display:flex; gap:8px; z-index:100; }
+.bottom-bar .btn { flex:1; }
+
+.toast { position:fixed; bottom:80px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,.75); color:#fff; padding:8px 20px; border-radius:20px; font-size:13px; z-index:999; pointer-events:none; opacity:0; transition:opacity .3s; }
+.toast.show { opacity:1; }
+
+/* Summary grid for M7 */
+.summary-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px; }
+.summary-item { background:#f5f5f5; border-radius:8px; padding:10px; text-align:center; }
+.summary-item .s-label { font-size:11px; color:var(--txt2); margin-bottom:4px; }
+.summary-item .s-value { font-size:20px; font-weight:700; }
+.summary-item .s-value.positive { color:var(--pri); }
+.summary-item .s-value.negative { color:var(--dan); }
+
+/* Modal */
+.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:200; display:flex; align-items:center; justify-content:center; }
+.modal { background:#fff; border-radius:12px; padding:20px; width:90%; max-width:400px; max-height:85vh; overflow-y:auto; }
+.modal h3 { margin-bottom:12px; }
+.modal .hint { font-size:12px; color:var(--txt3); margin-top:4px; }
+.modal .btn-row { display:flex; gap:8px; margin-top:14px; }
+
+@media (min-width:768px) {
+  .section { max-width:600px; margin:0 auto; }
+  .tabs { justify-content:center; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>水果进销存管理系统</h1>
+  <div class="date-row">
+    <button class="date-nav" onclick="shiftDate(-1)" title="前一天">◀</button>
+    <input type="date" id="datePicker" onchange="switchDate(this.value)">
+    <button class="date-nav" onclick="shiftDate(1)" title="后一天">▶</button>
+    <button class="date-nav" onclick="switchDate(todayStr())" title="今天" style="font-size:12px;width:auto;border-radius:12px;padding:0 8px;">今天</button>
+    <button class="date-nav" onclick="showSettings()" title="设置" style="font-size:14px;">⚙</button>
+  </div>
+  <div class="sync-badge" id="syncBadge" onclick="manualRefresh()"><span class="dot" id="syncDot"></span><span id="syncLabel">加载中...</span></div>
+</div>
+
+<div class="tabs" id="tabBar">
+  <button data-tab="m1" class="active">原料</button>
+  <button data-tab="m2">好果</button>
+  <button data-tab="m3">库存</button>
+  <button data-tab="m4">收支</button>
+  <button data-tab="m5">包材</button>
+  <button data-tab="m6">毛利</button>
+  <button data-tab="m7">历史</button>
+</div>
+
+<div class="section active" id="sec-m1">
+  <div class="card">
+    <h3>模块一 · 当日水果重量与总价</h3>
+    <div id="m1Batches"></div>
+    <button class="btn btn-pri btn-block" onclick="addM1Batch()">+ Add Batch</button>
+    <div class="result" id="m1Result"></div>
+  </div>
+</div>
+
+<div class="section" id="sec-m2">
+  <div class="card">
+    <h3>模块二 · 好果单价及箱规价格</h3>
+    <div class="row">
+      <div><label>次果量（公斤）</label><input type="number" step="0.01" id="m2_sub_kg" onchange="calcAll()"></div>
+      <div><label>次果回收单价（元/斤）</label><input type="number" step="0.01" id="m2_sub_price" onchange="calcAll()"></div>
+    </div>
+    <div class="result" id="m2Result"></div>
+  </div>
+</div>
+
+<div class="section" id="sec-m3">
+  <div class="card">
+    <h3>模块三 · 出入库记录</h3>
+    <div id="m3Batches"></div>
+    <button class="btn btn-pri btn-block" onclick="addM3Batch()">+ Add Batch</button>
+    <div class="result" id="m3Result"></div>
+  </div>
+</div>
+
+<div class="section" id="sec-m4">
+  <div class="card">
+    <h3>模块四 · 现金收入与支出</h3>
+    <h4>现金收入（多笔）</h4>
+    <div id="m4Incomes"></div>
+    <button class="btn btn-pri btn-block" onclick="addM4Income()">+ Add Income</button>
+    <h4>现金支出</h4>
+    <div class="row">
+      <div><label>打单装卸费</label><input type="number" step="0.01" id="m4_loading" onchange="calcAll()" value="0"></div>
+      <div><label>人工费（含餐费）</label><input type="number" step="0.01" id="m4_labor" onchange="calcAll()" value="0"></div>
+    </div>
+    <div class="row">
+      <div><label>包材费</label><input type="number" step="0.01" id="m4_packaging" onchange="calcAll()" value="0"></div>
+      <div><label>协作费</label><input type="number" step="0.01" id="m4_collab" onchange="calcAll()" value="0"></div>
+    </div>
+    <div class="row">
+      <div><label>售后费</label><input type="number" step="0.01" id="m4_aftersale" onchange="calcAll()" value="0"></div>
+      <div></div>
+    </div>
+    <div class="result" id="m4Result"></div>
+  </div>
+</div>
+
+<div class="section" id="sec-m5">
+  <div class="card">
+    <h3>模块五 · 包材明细账目</h3>
+    <div class="row">
+      <div><label>明细账目</label><select id="m5_type"><option value="包装箱">包装箱</option><option value="果套">果套</option><option value="胶带">胶带</option></select></div>
+      <div><label>采购量</label><input type="number" step="0.01" id="m5_qty" placeholder="数量"></div>
+    </div>
+    <div class="row">
+      <div><label>采购总价（元）</label><input type="number" step="0.01" id="m5_total" placeholder="总价"></div>
+      <div><label>采购单价（元）</label><input type="number" step="0.01" id="m5_unit" readonly placeholder="自动计算"></div>
+    </div>
+    <button class="btn btn-pri btn-block" onclick="addM5Record()">+ Add Record</button>
+    <div style="overflow-x:auto;"><table class="tbl" id="m5Table"><thead><tr><th>日期</th><th>时间</th><th>账目</th><th>采购量</th><th>总价</th><th>单价</th><th>操作</th></tr></thead><tbody></tbody></table></div>
+    <div class="result" id="m5Result"></div>
+  </div>
+</div>
+
+<div class="section" id="sec-m6">
+  <div class="card">
+    <h3>模块六 · 毛利核算</h3>
+    <h4 style="color:#FF9800;">9斤箱</h4>
+    <div class="row">
+      <div><label>单箱装卸费</label><input type="number" step="0.01" id="m6_load9" value="0" onchange="calcAll()"></div>
+      <div><label>单箱包材费</label><input type="number" step="0.01" id="m6_pkg9" value="2.01" onchange="calcAll()"></div>
+    </div>
+    <div class="row">
+      <div><label>单箱快递费</label><input type="number" step="0.01" id="m6_ship9" value="5" onchange="calcAll()"></div>
+      <div><label>单箱售后费</label><input type="number" step="0.01" id="m6_as9" value="0" onchange="calcAll()"></div>
+    </div>
+    <div class="row">
+      <div><label>9斤箱售价</label><input type="number" step="0.01" id="m6_price9" value="19.3" onchange="calcAll()"></div>
+      <div></div>
+    </div>
+    <div class="result" id="m6Result9"></div>
+
+    <h4 style="color:#FF9800; margin-top:16px;">5斤箱</h4>
+    <div class="row">
+      <div><label>单箱装卸费</label><input type="number" step="0.01" id="m6_load5" value="0" onchange="calcAll()"></div>
+      <div><label>单箱包材费</label><input type="number" step="0.01" id="m6_pkg5" value="1.54" onchange="calcAll()"></div>
+    </div>
+    <div class="row">
+      <div><label>单箱快递费</label><input type="number" step="0.01" id="m6_ship5" value="3.9" onchange="calcAll()"></div>
+      <div><label>单箱售后费</label><input type="number" step="0.01" id="m6_as5" value="0" onchange="calcAll()"></div>
+    </div>
+    <div class="row">
+      <div><label>5斤箱售价</label><input type="number" step="0.01" id="m6_price5" value="12.8" onchange="calcAll()"></div>
+      <div></div>
+    </div>
+    <div class="result" id="m6Result5"></div>
+  </div>
+</div>
+
+<div class="section" id="sec-m7">
+  <div class="card">
+    <h3>模块七 · 历史总览</h3>
+    <div class="summary-grid" id="m7Summary"></div>
+    <div style="overflow-x:auto;"><table class="tbl" id="m7Table"><thead><tr><th>日期</th><th>水果总价</th><th>好果均价</th><th>收入</th><th>支出</th><th>现金流</th><th>9斤毛利</th><th>5斤毛利</th></tr></thead><tbody></tbody></table></div>
+  </div>
+</div>
+
+<div class="bottom-bar">
+  <button class="btn btn-acc" onclick="exportCSV(true)">Download All</button>
+  <button class="btn btn-out" onclick="exportCSV(false)">Download Today</button>
+  <button class="btn btn-dan" onclick="clearToday()" style="flex:0.5;">Clear</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- 设置弹窗 -->
+<div class="modal-overlay" id="settingsModal" style="display:none;">
+  <div class="modal">
+    <h3>Supabase 云同步设置</h3>
+    <label>Supabase URL</label>
+    <input type="text" id="cfgUrl" placeholder="https://xxxxx.supabase.co">
+    <div class="hint">在 Supabase 控制台 → Settings → API → Project URL</div>
+    <label style="margin-top:10px;">anon Key</label>
+    <input type="password" id="cfgKey" placeholder="eyJhbGciOi...">
+    <div class="hint">在 Supabase 控制台 → Settings → API → anon public key</div>
+    <div class="hint" style="color:var(--acc);margin-top:8px;">留空则仅使用本机 localStorage 存储</div>
+    <div class="btn-row">
+      <button class="btn btn-pri" onclick="saveSettings()" style="flex:2;">Save & Connect</button>
+      <button class="btn btn-out" onclick="closeSettings()" style="flex:1;">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script src="supabase.js"></script>
+<script>
+// ==================== 日期工具 ====================
+function todayStr() { return new Date().toISOString().split('T')[0]; }
+
+// ==================== Supabase 配置 ====================
+const CFG_KEY = 'fruit_supabase_cfg_v2';
+const DEFAULT_URL = 'https://gcskcmjvzujzcsikxzkx.supabase.co';
+const DEFAULT_KEY = 'sb_publishable_TYnfazxheteZjJxGFOw0Tg_aX-VBUDR';
+const SUPABASE_TABLE = 'fruit_modules';
+
+let supabase = null;
+let syncMode = 'local';
+
+function getConfig() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(CFG_KEY));
+    if (saved && saved.url && saved.key) return saved;
+  } catch(e) {}
+  return { url: DEFAULT_URL, key: DEFAULT_KEY };
+}
+
+function saveConfig(cfg) {
+  try { localStorage.setItem(CFG_KEY, JSON.stringify(cfg)); } catch(e) {}
+}
+
+function initSupabase() {
+  const cfg = getConfig();
+  if (cfg.url && cfg.key && window.supabase) {
+    try {
+      supabase = window.supabase.createClient(cfg.url, cfg.key);
+      syncMode = 'cloud';
+      return true;
+    } catch(e) { supabase = null; }
+  }
+  syncMode = 'local';
+  return false;
+}
+
+// ==================== 数据模型 ====================
+const LOCAL_KEY = 'fruit_mgmt_v3';
+
+function getDefaultDayData() {
+  return {
+    m1: { batches: [] },
+    m2: { sub_kg: 0, sub_price: 0 },
+    m3: { batches: [] },
+    m4: { incomes: [], loading: 0, labor: 0, packaging: 0, collab: 0, aftersale: 0 },
+    m5: { records: [] },
+    m6: { load9: 0, pkg9: 2.01, ship9: 5, as9: 0, price9: 19.3,
+          load5: 0, pkg5: 1.54, ship5: 3.9, as5: 0, price5: 12.8 }
+  };
+}
+
+let ALL_DATA = {};
+let MODULE_VERSIONS = {}; // key: "date-module", value: version number
+let currentDate = todayStr();
+let DATA = getDefaultDayData();
+let isLoading = false;
+let realtimeChannel = null;
+
+function verKey(date, module) { return date + '-' + module; }
+
+// ==================== 同步状态 ====================
+function setSyncStatus(status, label) {
+  var dot = document.getElementById('syncDot');
+  var lbl = document.getElementById('syncLabel');
+  dot.className = 'dot ' + status;
+  lbl.textContent = label;
+}
+
+// ==================== 本地存储 ====================
+function saveLocal() {
+  try {
+    localStorage.setItem(LOCAL_KEY, JSON.stringify({
+      allData: ALL_DATA,
+      versions: MODULE_VERSIONS
+    }));
+  } catch(e) {}
+}
+
+function loadLocal() {
+  try {
+    var raw = localStorage.getItem(LOCAL_KEY);
+    if (raw) {
+      var parsed = JSON.parse(raw);
+      if (parsed.allData) {
+        ALL_DATA = parsed.allData;
+        MODULE_VERSIONS = parsed.versions || {};
+        return true;
+      }
+      // v1/v2 迁移
+      if (parsed.date && parsed.m1) {
+        ALL_DATA = {};
+        ALL_DATA[parsed.date] = { m1:parsed.m1, m2:parsed.m2, m3:parsed.m3, m4:parsed.m4, m5:parsed.m5, m6:parsed.m6 };
+        return true;
+      }
+      if (typeof parsed === 'object' && Object.keys(parsed).length > 0) {
+        ALL_DATA = parsed;
+        return true;
+      }
+    }
+  } catch(e) {}
+  return false;
+}
+
+// ==================== Supabase 操作 ====================
+async function loadFromSupabase() {
+  if (!supabase) return false;
+  try {
+    var result = await supabase.from(SUPABASE_TABLE).select('date,module,data,version');
+    if (result.error) throw result.error;
+    ALL_DATA = {};
+    MODULE_VERSIONS = {};
+    (result.data || []).forEach(function(row) {
+      if (!ALL_DATA[row.date]) ALL_DATA[row.date] = getDefaultDayData();
+      ALL_DATA[row.date][row.module] = row.data;
+      MODULE_VERSIONS[verKey(row.date, row.module)] = row.version;
+    });
+    saveLocal();
+    return true;
+  } catch(e) {
+    console.error('Supabase load error:', e);
+    return false;
+  }
+}
+
+async function saveModule(module) {
+  if (!supabase) return { success: false, localOnly: true };
+
+  var date = currentDate;
+  var vk = verKey(date, module);
+  var localVersion = MODULE_VERSIONS[vk] || 0;
+  var moduleData = DATA[module];
+  var now = new Date().toISOString();
+
+  try {
+    if (localVersion > 0) {
+      // 行已存在 → 乐观锁更新
+      var upd = await supabase.from(SUPABASE_TABLE)
+        .update({ data: moduleData, version: localVersion + 1, updated_at: now })
+        .eq('date', date)
+        .eq('module', module)
+        .eq('version', localVersion)
+        .select('version');
+
+      if (upd.error) throw upd.error;
+      if (upd.data && upd.data.length > 0) {
+        MODULE_VERSIONS[vk] = upd.data[0].version;
+        saveLocal();
+        return { success: true };
+      }
+
+      // version 不匹配 → 冲突，拉取最新
+      var conflict = await supabase.from(SUPABASE_TABLE)
+        .select('data,version')
+        .eq('date', date)
+        .eq('module', module)
+        .maybeSingle();
+
+      if (conflict.data) {
+        DATA[module] = conflict.data.data;
+        MODULE_VERSIONS[vk] = conflict.data.version;
+        saveLocal();
+        return { success: false, conflict: true };
+      }
+      // 行被删了？fall through to insert
+    }
+
+    // 行不存在 → 插入
+    var ins = await supabase.from(SUPABASE_TABLE).insert({
+      date: date, module: module, data: moduleData, version: 1, updated_at: now
+    }).select('version');
+
+    if (ins.error) {
+      // 可能是并发插入导致的唯一键冲突
+      if (ins.error.code === '23505') {
+        var dup = await supabase.from(SUPABASE_TABLE)
+          .select('data,version')
+          .eq('date', date).eq('module', module).maybeSingle();
+        if (dup.data) {
+          DATA[module] = dup.data.data;
+          MODULE_VERSIONS[vk] = dup.data.version;
+          saveLocal();
+          return { success: false, conflict: true };
+        }
+      }
+      throw ins.error;
+    }
+
+    if (ins.data && ins.data.length > 0) {
+      MODULE_VERSIONS[vk] = ins.data[0].version;
+    }
+    saveLocal();
+    return { success: true };
+
+  } catch(e) {
+    console.error('Supabase save error:', e);
+    return { success: false, localOnly: true };
+  }
+}
+
+async function deleteModuleFromCloud(module) {
+  if (!supabase) return;
+  try {
+    await supabase.from(SUPABASE_TABLE)
+      .delete()
+      .eq('date', currentDate)
+      .eq('module', module);
+    delete MODULE_VERSIONS[verKey(currentDate, module)];
+    saveLocal();
+  } catch(e) {}
+}
+
+// ==================== Realtime 订阅 ====================
+function subscribeRealtime() {
+  if (!supabase) return;
+  if (realtimeChannel) { try { supabase.removeChannel(realtimeChannel); } catch(e) {} }
+
+  try {
+    realtimeChannel = supabase
+      .channel('fruit-modules-changes')
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: SUPABASE_TABLE },
+        function(payload) {
+          if (isLoading) return;
+          var row = payload.new || payload.old;
+          if (!row || !row.date) return;
+
+          if (payload.eventType === 'DELETE') {
+            if (ALL_DATA[row.date]) {
+              ALL_DATA[row.date][row.module] = getDefaultDayData()[row.module];
+            }
+          } else {
+            if (!ALL_DATA[row.date]) ALL_DATA[row.date] = getDefaultDayData();
+            ALL_DATA[row.date][row.module] = row.data;
+            MODULE_VERSIONS[verKey(row.date, row.module)] = row.version;
+          }
+          saveLocal();
+
+          // 只在当前日期且非自己触发的变更时自动刷新
+          if (row.date === currentDate) {
+            DATA = ALL_DATA[currentDate];
+            renderModule(row.module);
+            renderResults();
+            showToast('数据已同步更新');
+          }
+        }
+      )
+      .subscribe(function(status) {
+        if (status === 'SUBSCRIBED') {
+          setSyncStatus('online', '实时同步已连接');
+        } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+          setSyncStatus('error', '实时连接断开');
+        }
+      });
+  } catch(e) {
+    console.error('Realtime subscribe error:', e);
+  }
+}
+
+// ==================== 全量同步 ====================
+async function fullSync() {
+  isLoading = true;
+  setSyncStatus('offline', '同步中...');
+
+  // 先同步当前输入框的值
+  syncM4Inputs(); syncM6Inputs();
+
+  if (syncMode === 'cloud' && supabase) {
+    // 保存当前脏数据
+    var modules = ['m1','m2','m3','m4','m5','m6'];
+    for (var i = 0; i < modules.length; i++) {
+      await saveModule(modules[i]);
+    }
+    // 拉取全量最新
+    var ok = await loadFromSupabase();
+    if (ok) {
+      setSyncStatus('online', '云同步已连接');
+      subscribeRealtime();
+    } else {
+      setSyncStatus('error', '云端连接失败，使用本地缓存');
+    }
+  } else {
+    saveLocal();
+    setSyncStatus('offline', '本机存储模式');
+  }
+
+  // 确保当前日期有数据
+  if (!ALL_DATA[currentDate]) ALL_DATA[currentDate] = getDefaultDayData();
+  DATA = ALL_DATA[currentDate];
+  isLoading = false;
+  renderAll();
+}
+
+async function manualRefresh() {
+  if (isLoading) return;
+  await fullSync();
+  showToast('已刷新');
+}
+
+// ==================== 数据管理器 ====================
+async function saveAllData() {
+  try { saveLocal(); } catch(e) {}
+  if (syncMode === 'cloud' && supabase) {
+    var result = await saveModule(getCurrentModuleFromUI());
+    if (result.conflict) {
+      showToast('数据已被他人修改，已自动刷新');
+      renderAll();
+      return;
+    }
+    if (!result.success && !result.localOnly) {
+      setSyncStatus('error', '保存失败，已存本地');
+    }
+  }
+}
+
+function getCurrentModuleFromUI() {
+  var activeTab = document.querySelector('#tabBar button.active');
+  if (activeTab && activeTab.dataset.tab !== 'm7') return activeTab.dataset.tab;
+  return 'm1'; // M7 is read-only, default to m1
+}
+
+async function switchDate(date) {
+  if (!date || isLoading) return;
+  syncM4Inputs(); syncM6Inputs();
+  // 保存当前模块
+  var curModule = getCurrentModuleFromUI();
+  await saveModule(curModule);
+
+  currentDate = date;
+  if (!ALL_DATA[currentDate]) ALL_DATA[currentDate] = getDefaultDayData();
+  DATA = ALL_DATA[currentDate];
+  renderAll();
+
+  // 后台拉取该日期的最新数据
+  if (syncMode === 'cloud' && supabase) {
+    try {
+      var result = await supabase.from(SUPABASE_TABLE)
+        .select('module,data,version')
+        .eq('date', currentDate);
+      if (result.data) {
+        result.data.forEach(function(row) {
+          ALL_DATA[currentDate][row.module] = row.data;
+          MODULE_VERSIONS[verKey(currentDate, row.module)] = row.version;
+        });
+        DATA = ALL_DATA[currentDate];
+        saveLocal();
+        renderAll();
+      }
+    } catch(e) {}
+  }
+}
+
+function shiftDate(delta) {
+  var d = new Date(currentDate);
+  d.setDate(d.getDate() + delta);
+  switchDate(d.toISOString().split('T')[0]);
+}
+
+async function clearToday() {
+  if (!confirm('确定清空 ' + currentDate + ' 所有数据？此操作不可恢复！')) return;
+  ALL_DATA[currentDate] = getDefaultDayData();
+  DATA = ALL_DATA[currentDate];
+  // 删除云端该日期的所有模块
+  if (syncMode === 'cloud' && supabase) {
+    var modules = ['m1','m2','m3','m4','m5','m6'];
+    for (var i = 0; i < modules.length; i++) {
+      await deleteModuleFromCloud(modules[i]);
+    }
+  }
+  saveLocal();
+  renderAll();
+  showToast('已清空 ' + currentDate);
+}
+
+// ==================== 计算函数 ====================
+function calcM1() {
+  var tw = 0, tr = 0, tp = 0;
+  (DATA.m1.batches || []).forEach(function(b) {
+    var wj = (b.weight_kg || 0) * 2, tj = (b.tare_kg || 0) * 2, r = wj - tj;
+    tw += wj; tr += r; tp += r * (b.unit_price || 0);
+  });
+  return { total_weight_jin: tw, total_real_weight: tr, total_price: tp };
+}
+
+function calcM2() {
+  var m1 = calcM1();
+  var sj = (DATA.m2.sub_kg || 0) * 2;
+  var st = sj * (DATA.m2.sub_price || 0);
+  var sr = m1.total_real_weight > 0 ? sj / m1.total_real_weight : 0;
+  var gw = m1.total_real_weight - sj;
+  var gp = gw > 0 ? (m1.total_price - st) / gw : 0;
+  return { sub_jin: sj, sub_total: st, sub_rate: sr, good_price: gp, box9_price: 8.5 * gp, box5_price: 4.5 * gp };
+}
+
+function calcM3() {
+  var i9 = 0, i5 = 0, iS = 0, o9 = 0, o5 = 0, oS = 0;
+  (DATA.m3.batches || []).forEach(function(b) {
+    var q = b.qty || 0;
+    if (b.direction === 'in') { if (b.size === '9') i9 += q; else if (b.size === '5') i5 += q; else iS += q; }
+    else { if (b.size === '9') o9 += q; else if (b.size === '5') o5 += q; else oS += q; }
+  });
+  return { in9: i9, in5: i5, inSample: iS, out9: o9, out5: o5, outSample: oS };
+}
+
+function calcM4() {
+  var inc = 0;
+  (DATA.m4.incomes || []).forEach(function(x) { inc += x.amount || 0; });
+  var fc = calcM1().total_price;
+  var exp = fc + (DATA.m4.loading || 0) + (DATA.m4.labor || 0) + (DATA.m4.packaging || 0) + (DATA.m4.collab || 0) + (DATA.m4.aftersale || 0);
+  return { totalIncome: inc, fruitCost: fc, totalExpense: exp, cashFlow: inc - exp };
+}
+
+function calcM5() {
+  var q = 0, p = 0;
+  Object.keys(ALL_DATA).forEach(function(date) {
+    var day = ALL_DATA[date];
+    (day.m5.records || []).forEach(function(r) { q += r.qty || 0; p += r.total_price || 0; });
+  });
+  return { totalQty: q, totalPrice: p };
+}
+
+function calcM6() {
+  var m2 = calcM2(), m3 = calcM3();
+  var labor = DATA.m4.labor || 0, sr = m2.sub_rate;
+  var denom = m3.in9 * 8.5 + m3.in5 * 4.5;
+
+  var c9o = m2.box9_price;
+  var c9l = m3.in9 > 0 && denom > 0 ? (labor * (m3.in9 * 8.5 / denom)) / m3.in9 : 0;
+  var c9ld = DATA.m6.load9 || 0, c9p = DATA.m6.pkg9 || 0, c9s = DATA.m6.ship9 || 0;
+  var c9c = 8.5 * 0.03 * (1 + sr), c9a = DATA.m6.as9 || 0;
+  var c9t = c9o + c9l + c9ld + c9p + c9s + c9c + c9a;
+  var p9 = DATA.m6.price9 || 0;
+
+  var c5o = m2.box5_price;
+  var c5l = m3.in5 > 0 && denom > 0 ? (labor * (m3.in5 * 4.5 / denom)) / m3.in5 : 0;
+  var c5ld = DATA.m6.load5 || 0, c5p = DATA.m6.pkg5 || 0, c5s = DATA.m6.ship5 || 0;
+  var c5c = 4.5 * 0.03 * (1 + sr), c5a = DATA.m6.as5 || 0;
+  var c5t = c5o + c5l + c5ld + c5p + c5s + c5c + c5a;
+  var p5 = DATA.m6.price5 || 0;
+
+  return { cost9_orig: c9o, cost9_labor: c9l, cost9_load: c9ld, cost9_pkg: c9p, cost9_ship: c9s, cost9_collab: c9c, cost9_as: c9a, cost9_total: c9t, price9: p9, profit9: p9 - c9t,
+           cost5_orig: c5o, cost5_labor: c5l, cost5_load: c5ld, cost5_pkg: c5p, cost5_ship: c5s, cost5_collab: c5c, cost5_as: c5a, cost5_total: c5t, price5: p5, profit5: p5 - c5t };
+}
+
+function calcAll() {
+  syncM4Inputs(); syncM6Inputs();
+  renderResults();
+  saveAllData();
+}
+
+// ==================== 同步输入框 ====================
+function syncM4Inputs() {
+  DATA.m4.loading = parseFloat(document.getElementById('m4_loading')?.value) || 0;
+  DATA.m4.labor = parseFloat(document.getElementById('m4_labor')?.value) || 0;
+  DATA.m4.packaging = parseFloat(document.getElementById('m4_packaging')?.value) || 0;
+  DATA.m4.collab = parseFloat(document.getElementById('m4_collab')?.value) || 0;
+  DATA.m4.aftersale = parseFloat(document.getElementById('m4_aftersale')?.value) || 0;
+}
+
+function syncM6Inputs() {
+  DATA.m6.load9 = parseFloat(document.getElementById('m6_load9')?.value) || 0;
+  DATA.m6.pkg9 = parseFloat(document.getElementById('m6_pkg9')?.value) || 2.01;
+  DATA.m6.ship9 = parseFloat(document.getElementById('m6_ship9')?.value) || 5;
+  DATA.m6.as9 = parseFloat(document.getElementById('m6_as9')?.value) || 0;
+  DATA.m6.price9 = parseFloat(document.getElementById('m6_price9')?.value) || 19.3;
+  DATA.m6.load5 = parseFloat(document.getElementById('m6_load5')?.value) || 0;
+  DATA.m6.pkg5 = parseFloat(document.getElementById('m6_pkg5')?.value) || 1.54;
+  DATA.m6.ship5 = parseFloat(document.getElementById('m6_ship5')?.value) || 3.9;
+  DATA.m6.as5 = parseFloat(document.getElementById('m6_as5')?.value) || 0;
+  DATA.m6.price5 = parseFloat(document.getElementById('m6_price5')?.value) || 12.8;
+}
+
+// ==================== 渲染 ====================
+function renderAll() {
+  document.getElementById('datePicker').value = currentDate;
+  renderM1(); renderM2(); renderM3(); renderM4(); renderM5(); renderM6();
+  renderResults();
+}
+
+function renderModule(module) {
+  switch(module) {
+    case 'm1': renderM1(); break;
+    case 'm2': renderM2(); break;
+    case 'm3': renderM3(); break;
+    case 'm4': renderM4(); break;
+    case 'm5': renderM5(); break;
+    case 'm6': renderM6(); break;
+  }
+}
+
+function renderResults() {
+  renderM1Result(); renderM2Result(); renderM3Result(); renderM4Result(); renderM5Result(); renderM6Result();
+}
+
+// --- M1 ---
+function renderM1() {
+  var c = document.getElementById('m1Batches');
+  var b = DATA.m1.batches || [];
+  c.innerHTML = b.length === 0
+    ? '<div style="text-align:center;color:var(--txt3);padding:12px;">暂无批次，点击下方按钮添加</div>'
+    : b.map(function(x, i) {
+        return '<div class="batch"><div class="batch-header"><span class="batch-title">批次 ' + (i+1) + '</span><button class="btn-del" onclick="delM1Batch(' + i + ')">×</button></div>' +
+        '<div class="row"><div><label>原果桶数</label><input type="number" step="0.01" value="' + (x.barrels||'') + '" onchange="updateM1(' + i + ',\'barrels\',this.value)"></div><div><label>原果重量(公斤)</label><input type="number" step="0.01" value="' + (x.weight_kg||'') + '" onchange="updateM1(' + i + ',\'weight_kg\',this.value)"></div></div>' +
+        '<div class="row"><div><label>原果单价(元/斤)</label><input type="number" step="0.01" value="' + (x.unit_price||'') + '" onchange="updateM1(' + i + ',\'unit_price\',this.value)"></div><div><label>应去皮重(公斤)</label><input type="number" step="0.01" value="' + (x.tare_kg||'') + '" onchange="updateM1(' + i + ',\'tare_kg\',this.value)"></div></div></div>';
+      }).join('');
+}
+
+function addM1Batch() { DATA.m1.batches.push({ barrels:0, weight_kg:0, unit_price:0, tare_kg:0 }); saveAllData(); renderAll(); }
+function delM1Batch(i) { if(!confirm('确认删除批次 '+(i+1)+'？')) return; DATA.m1.batches.splice(i,1); saveAllData(); renderAll(); }
+function updateM1(i, f, v) { DATA.m1.batches[i][f] = parseFloat(v)||0; saveAllData(); renderResults(); }
+
+function renderM1Result() {
+  var r = calcM1();
+  document.getElementById('m1Result').innerHTML = '<div class="r-row"><span>原果总重量（斤）</span><span class="r-val">' + r.total_weight_jin.toFixed(2) + '</span></div><div class="r-row"><span>水果真实重量（斤）</span><span class="r-val">' + r.total_real_weight.toFixed(2) + '</span></div><div class="r-row"><span>水果真实总价（元）</span><span class="r-val">' + r.total_price.toFixed(2) + '</span></div>';
+}
+
+// --- M2 ---
+function renderM2() {
+  document.getElementById('m2_sub_kg').value = DATA.m2.sub_kg || '';
+  document.getElementById('m2_sub_price').value = DATA.m2.sub_price || '';
+}
+
+function renderM2Result() {
+  var r = calcM2();
+  document.getElementById('m2Result').innerHTML = '<div class="r-row"><span>次果量（斤）</span><span class="r-val">' + r.sub_jin.toFixed(2) + '</span></div><div class="r-row"><span>次果回收总价（元）</span><span class="r-val">' + r.sub_total.toFixed(2) + '</span></div><div class="r-row"><span>次果率</span><span class="r-val">' + (r.sub_rate*100).toFixed(2) + '%</span></div><div class="r-row"><span>好果单价（元/斤）</span><span class="r-val">' + r.good_price.toFixed(4) + '</span></div><div class="r-row"><span>9斤箱原果单箱价格（元）</span><span class="r-val">' + r.box9_price.toFixed(2) + '</span></div><div class="r-row"><span>5斤箱原果单箱价格（元）</span><span class="r-val">' + r.box5_price.toFixed(2) + '</span></div>';
+}
+
+document.getElementById('m2_sub_kg').addEventListener('input', function() { DATA.m2.sub_kg = parseFloat(this.value)||0; calcAll(); });
+document.getElementById('m2_sub_price').addEventListener('input', function() { DATA.m2.sub_price = parseFloat(this.value)||0; calcAll(); });
+
+// --- M3 ---
+function renderM3() {
+  var c = document.getElementById('m3Batches');
+  var b = DATA.m3.batches || [];
+  c.innerHTML = b.length === 0
+    ? '<div style="text-align:center;color:var(--txt3);padding:12px;">暂无批次，点击下方按钮添加</div>'
+    : b.map(function(x, i) {
+        return '<div class="batch"><div class="batch-header"><span class="batch-title">批次 ' + (i+1) + '</span><button class="btn-del" onclick="delM3Batch(' + i + ')">×</button></div>' +
+        '<div class="row"><div><label>方向</label><select onchange="updateM3(' + i + ',\'direction\',this.value)"><option value="in"' + (x.direction==='in'?' selected':'') + '>入库</option><option value="out"' + (x.direction==='out'?' selected':'') + '>出库</option></select></div><div><label>规格</label><select onchange="updateM3(' + i + ',\'size\',this.value)"><option value="9"' + (x.size==='9'?' selected':'') + '>9斤箱</option><option value="5"' + (x.size==='5'?' selected':'') + '>5斤箱</option><option value="sample"' + (x.size==='sample'?' selected':'') + '>试吃装</option></select></div><div><label>数量</label><input type="number" step="0.01" value="' + (x.qty||'') + '" onchange="updateM3(' + i + ',\'qty\',this.value)"></div></div></div>';
+      }).join('');
+}
+
+function addM3Batch() { DATA.m3.batches.push({ direction:'in', size:'9', qty:0 }); saveAllData(); renderAll(); }
+function delM3Batch(i) { if(!confirm('确认删除批次 '+(i+1)+'？')) return; DATA.m3.batches.splice(i,1); saveAllData(); renderAll(); }
+function updateM3(i, f, v) { DATA.m3.batches[i][f] = f==='qty' ? (parseFloat(v)||0) : v; saveAllData(); renderResults(); }
+
+function renderM3Result() {
+  var r = calcM3();
+  document.getElementById('m3Result').innerHTML = '<div style="font-weight:600;margin-bottom:6px;">入库汇总</div><div class="r-row"><span>9斤箱入库</span><span class="r-val">' + r.in9 + '</span></div><div class="r-row"><span>5斤箱入库</span><span class="r-val">' + r.in5 + '</span></div><div class="r-row"><span>试吃装入库</span><span class="r-val">' + r.inSample + '</span></div><div style="font-weight:600;margin:8px 0 6px;">出库汇总</div><div class="r-row"><span>9斤箱出库</span><span class="r-val">' + r.out9 + '</span></div><div class="r-row"><span>5斤箱出库</span><span class="r-val">' + r.out5 + '</span></div><div class="r-row"><span>试吃装出库</span><span class="r-val">' + r.outSample + '</span></div>';
+}
+
+// --- M4 ---
+function renderM4() {
+  var c = document.getElementById('m4Incomes');
+  var inc = DATA.m4.incomes || [];
+  c.innerHTML = inc.length === 0
+    ? '<div style="text-align:center;color:var(--txt3);padding:8px;">暂无收入记录</div>'
+    : inc.map(function(x, i) {
+        return '<div class="batch"><div class="batch-header"><span class="batch-title">收入 ' + (i+1) + '</span><button class="btn-del" onclick="delM4Income(' + i + ')">×</button></div><div class="row"><div><label>金额（元）</label><input type="number" step="0.01" value="' + (x.amount||'') + '" onchange="updateM4Inc(' + i + ',\'amount\',this.value)"></div><div><label>备注</label><input type="text" value="' + (x.note||'') + '" onchange="updateM4Inc(' + i + ',\'note\',this.value)" placeholder="可选"></div></div></div>';
+      }).join('');
+  document.getElementById('m4_loading').value = DATA.m4.loading || 0;
+  document.getElementById('m4_labor').value = DATA.m4.labor || 0;
+  document.getElementById('m4_packaging').value = DATA.m4.packaging || 0;
+  document.getElementById('m4_collab').value = DATA.m4.collab || 0;
+  document.getElementById('m4_aftersale').value = DATA.m4.aftersale || 0;
+}
+
+function addM4Income() { DATA.m4.incomes.push({ amount:0, note:'' }); saveAllData(); renderAll(); }
+function delM4Income(i) { if(!confirm('确认删除收入 '+(i+1)+'？')) return; DATA.m4.incomes.splice(i,1); saveAllData(); renderAll(); }
+function updateM4Inc(i, f, v) { DATA.m4.incomes[i][f] = f==='amount' ? (parseFloat(v)||0) : v; saveAllData(); renderResults(); }
+
+function renderM4Result() {
+  var r = calcM4();
+  document.getElementById('m4Result').innerHTML = '<div class="r-row"><span>现金收入合计</span><span class="r-val">' + r.totalIncome.toFixed(2) + '</span></div><div class="r-row"><span>水果成本（模块一）</span><span class="r-val">' + r.fruitCost.toFixed(2) + '</span></div><div class="r-row"><span>支出合计</span><span class="r-val">' + r.totalExpense.toFixed(2) + '</span></div><div class="r-row"><span style="font-weight:700;">现金流</span><span class="r-val" style="font-size:16px;color:' + (r.cashFlow>=0?'#4CAF50':'#f44336') + '">' + r.cashFlow.toFixed(2) + '</span></div>';
+}
+
+// --- M5 ---
+function renderM5() {
+  var tbody = document.querySelector('#m5Table tbody');
+  var rec = DATA.m5.records || [];
+  tbody.innerHTML = rec.length === 0
+    ? '<tr><td colspan="7" style="color:var(--txt3);">当天暂无记录</td></tr>'
+    : rec.map(function(r, i) {
+        return '<tr><td>' + currentDate + '</td><td>' + (r.time||'-') + '</td><td>' + r.type + '</td><td>' + (r.qty||0).toFixed(2) + '</td><td>' + (r.total_price||0).toFixed(2) + '</td><td>' + (r.qty>0?(r.total_price/r.qty).toFixed(4):'-') + '</td><td><button class="btn btn-dan btn-sm" onclick="delM5Record(' + i + ')">Del</button></td></tr>';
+      }).join('');
+}
+
+function addM5Record() {
+  var type = document.getElementById('m5_type').value;
+  var qty = parseFloat(document.getElementById('m5_qty').value) || 0;
+  var total = parseFloat(document.getElementById('m5_total').value) || 0;
+  if (qty <= 0 || total <= 0) { showToast('请输入采购量和总价'); return; }
+  var now = new Date();
+  var time = ('0'+now.getHours()).slice(-2) + ':' + ('0'+now.getMinutes()).slice(-2) + ':' + ('0'+now.getSeconds()).slice(-2);
+  if (!DATA.m5.records) DATA.m5.records = [];
+  DATA.m5.records.push({ type: type, qty: qty, total_price: total, time: time });
+  document.getElementById('m5_qty').value = ''; document.getElementById('m5_total').value = ''; document.getElementById('m5_unit').value = '';
+  saveAllData(); renderAll();
+}
+
+function delM5Record(i) { if(!confirm('确认删除该包材记录？')) return; DATA.m5.records.splice(i,1); saveAllData(); renderAll(); }
+
+document.getElementById('m5_qty').addEventListener('input', function() {
+  var q = parseFloat(this.value)||0, t = parseFloat(document.getElementById('m5_total').value)||0;
+  document.getElementById('m5_unit').value = q>0 ? (t/q).toFixed(4) : '';
+});
+document.getElementById('m5_total').addEventListener('input', function() {
+  var t = parseFloat(this.value)||0, q = parseFloat(document.getElementById('m5_qty').value)||0;
+  document.getElementById('m5_unit').value = q>0 ? (t/q).toFixed(4) : '';
+});
+
+function renderM5Result() {
+  var r = calcM5();
+  document.getElementById('m5Result').innerHTML = '<div style="font-weight:600;margin-bottom:4px;">全部日期累计（跨天汇总）</div><div class="r-row"><span>累计采购量</span><span class="r-val">' + r.totalQty.toFixed(2) + '</span></div><div class="r-row"><span>累计采购总价（元）</span><span class="r-val">' + r.totalPrice.toFixed(2) + '</span></div>';
+}
+
+// --- M6 ---
+function renderM6() {
+  document.getElementById('m6_load9').value = DATA.m6.load9;
+  document.getElementById('m6_pkg9').value = DATA.m6.pkg9;
+  document.getElementById('m6_ship9').value = DATA.m6.ship9;
+  document.getElementById('m6_as9').value = DATA.m6.as9;
+  document.getElementById('m6_price9').value = DATA.m6.price9;
+  document.getElementById('m6_load5').value = DATA.m6.load5;
+  document.getElementById('m6_pkg5').value = DATA.m6.pkg5;
+  document.getElementById('m6_ship5').value = DATA.m6.ship5;
+  document.getElementById('m6_as5').value = DATA.m6.as5;
+  document.getElementById('m6_price5').value = DATA.m6.price5;
+}
+
+function renderM6Result() {
+  var r = calcM6();
+  document.getElementById('m6Result9').innerHTML = '<div style="font-weight:600;margin-bottom:4px;">9斤箱成本明细</div><div class="r-row"><span>单箱原果成本</span><span class="r-val">' + r.cost9_orig.toFixed(2) + '</span></div><div class="r-row"><span>单箱人工成本</span><span class="r-val">' + r.cost9_labor.toFixed(2) + '</span></div><div class="r-row"><span>单箱装卸费</span><span class="r-val">' + r.cost9_load.toFixed(2) + '</span></div><div class="r-row"><span>单箱包材费</span><span class="r-val">' + r.cost9_pkg.toFixed(2) + '</span></div><div class="r-row"><span>单箱快递费</span><span class="r-val">' + r.cost9_ship.toFixed(2) + '</span></div><div class="r-row"><span>单箱协助费</span><span class="r-val">' + r.cost9_collab.toFixed(2) + '</span></div><div class="r-row"><span>单箱售后费</span><span class="r-val">' + r.cost9_as.toFixed(2) + '</span></div><div class="r-row" style="font-weight:700;"><span>9斤箱总成本</span><span class="r-val">' + r.cost9_total.toFixed(2) + '</span></div><div class="r-row"><span>9斤箱售价</span><span class="r-val">' + r.price9.toFixed(2) + '</span></div><div class="r-row" style="font-weight:700;font-size:15px;"><span>9斤箱毛利</span><span class="r-val" style="color:' + (r.profit9>=0?'#4CAF50':'#f44336') + '">' + r.profit9.toFixed(2) + '</span></div>';
+  document.getElementById('m6Result5').innerHTML = '<div style="font-weight:600;margin-bottom:4px;">5斤箱成本明细</div><div class="r-row"><span>单箱原果成本</span><span class="r-val">' + r.cost5_orig.toFixed(2) + '</span></div><div class="r-row"><span>单箱人工成本</span><span class="r-val">' + r.cost5_labor.toFixed(2) + '</span></div><div class="r-row"><span>单箱装卸费</span><span class="r-val">' + r.cost5_load.toFixed(2) + '</span></div><div class="r-row"><span>单箱包材费</span><span class="r-val">' + r.cost5_pkg.toFixed(2) + '</span></div><div class="r-row"><span>单箱快递费</span><span class="r-val">' + r.cost5_ship.toFixed(2) + '</span></div><div class="r-row"><span>单箱协助费</span><span class="r-val">' + r.cost5_collab.toFixed(2) + '</span></div><div class="r-row"><span>单箱售后费</span><span class="r-val">' + r.cost5_as.toFixed(2) + '</span></div><div class="r-row" style="font-weight:700;"><span>5斤箱总成本</span><span class="r-val">' + r.cost5_total.toFixed(2) + '</span></div><div class="r-row"><span>5斤箱售价</span><span class="r-val">' + r.price5.toFixed(2) + '</span></div><div class="r-row" style="font-weight:700;font-size:15px;"><span>5斤箱毛利</span><span class="r-val" style="color:' + (r.profit5>=0?'#4CAF50':'#f44336') + '">' + r.profit5.toFixed(2) + '</span></div>';
+}
+
+// --- M7 ---
+function calcM7Summary() {
+  var days = [];
+  var totalIncome = 0, totalExpense = 0, totalFlow = 0, totalProfit9 = 0, totalProfit5 = 0;
+  var dates = Object.keys(ALL_DATA).sort();
+  dates.forEach(function(date) {
+    var day = ALL_DATA[date];
+    var tw = 0, tr = 0, tp = 0;
+    (day.m1.batches || []).forEach(function(b) {
+      var wj = (b.weight_kg || 0) * 2, tj = (b.tare_kg || 0) * 2, r = wj - tj;
+      tw += wj; tr += r; tp += r * (b.unit_price || 0);
+    });
+    var sj = (day.m2.sub_kg || 0) * 2, st = sj * (day.m2.sub_price || 0);
+    var gw = tr - sj, gp = gw > 0 ? (tp - st) / gw : 0;
+
+    var inc = 0;
+    (day.m4.incomes || []).forEach(function(x) { inc += x.amount || 0; });
+    var exp = tp + (day.m4.loading || 0) + (day.m4.labor || 0) + (day.m4.packaging || 0) + (day.m4.collab || 0) + (day.m4.aftersale || 0);
+    var flow = inc - exp;
+
+    var i9 = 0, i5 = 0;
+    (day.m3.batches || []).forEach(function(b) {
+      if (b.direction === 'in') { if (b.size === '9') i9 += b.qty || 0; else if (b.size === '5') i5 += b.qty || 0; }
+    });
+    var denom = i9 * 8.5 + i5 * 4.5;
+    var bp9 = 8.5 * gp, bp5 = 4.5 * gp;
+    var labor = day.m4.labor || 0;
+    var sr = tr > 0 ? sj / tr : 0;
+    var c9l = i9 > 0 && denom > 0 ? (labor * (i9 * 8.5 / denom)) / i9 : 0;
+    var c5l = i5 > 0 && denom > 0 ? (labor * (i5 * 4.5 / denom)) / i5 : 0;
+    var c9t = bp9 + c9l + (day.m6.load9 || 0) + (day.m6.pkg9 || 2.01) + (day.m6.ship9 || 5) + (8.5 * 0.03 * (1 + sr)) + (day.m6.as9 || 0);
+    var c5t = bp5 + c5l + (day.m6.load5 || 0) + (day.m6.pkg5 || 1.54) + (day.m6.ship5 || 3.9) + (4.5 * 0.03 * (1 + sr)) + (day.m6.as5 || 0);
+    var p9 = day.m6.price9 || 19.3, p5 = day.m6.price5 || 12.8;
+    var prof9 = p9 - c9t, prof5 = p5 - c5t;
+
+    days.push({ date: date, fruitCost: tp, goodPrice: gp, income: inc, expense: exp, cashFlow: flow, profit9: prof9, profit5: prof5 });
+    totalIncome += inc; totalExpense += exp; totalFlow += flow; totalProfit9 += prof9; totalProfit5 += prof5;
+  });
+
+  return { days: days, totalIncome: totalIncome, totalExpense: totalExpense, totalFlow: totalFlow, totalProfit9: totalProfit9, totalProfit5: totalProfit5, dayCount: dates.length };
+}
+
+function renderM7() {
+  var s = calcM7Summary();
+  document.getElementById('m7Summary').innerHTML =
+    '<div class="summary-item"><div class="s-label">记录天数</div><div class="s-value">' + s.dayCount + '</div></div>' +
+    '<div class="summary-item"><div class="s-label">累计收入</div><div class="s-value positive">¥' + s.totalIncome.toFixed(2) + '</div></div>' +
+    '<div class="summary-item"><div class="s-label">累计支出</div><div class="s-value negative">¥' + s.totalExpense.toFixed(2) + '</div></div>' +
+    '<div class="summary-item"><div class="s-label">累计现金流</div><div class="s-value ' + (s.totalFlow >= 0 ? 'positive' : 'negative') + '">¥' + s.totalFlow.toFixed(2) + '</div></div>';
+
+  var tbody = document.querySelector('#m7Table tbody');
+  if (s.days.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" style="color:var(--txt3);">暂无记录</td></tr>';
+  } else {
+    tbody.innerHTML = s.days.map(function(d) {
+      return '<tr><td>' + d.date + '</td><td>¥' + d.fruitCost.toFixed(2) + '</td><td>¥' + d.goodPrice.toFixed(2) + '</td><td>¥' + d.income.toFixed(2) + '</td><td>¥' + d.expense.toFixed(2) + '</td><td style="color:' + (d.cashFlow >= 0 ? '#4CAF50' : '#f44336') + ';font-weight:600;">¥' + d.cashFlow.toFixed(2) + '</td><td style="color:' + (d.profit9 >= 0 ? '#4CAF50' : '#f44336') + ';">¥' + d.profit9.toFixed(2) + '</td><td style="color:' + (d.profit5 >= 0 ? '#4CAF50' : '#f44336') + ';">¥' + d.profit5.toFixed(2) + '</td></tr>';
+    }).join('');
+  }
+}
+
+// ==================== 导出CSV ====================
+function exportCSV(allDates) {
+  var BOM = '﻿';
+  var csv = BOM;
+
+  if (allDates) {
+    // 导出全部历史
+    csv += '导出时间,' + new Date().toISOString().split('T')[0] + '\n';
+    csv += '日期,水果总价,好果均价,次果率,收入,支出,现金流,9斤箱毛利,5斤箱毛利,9斤箱入库,5斤箱入库,9斤箱出库,5斤箱出库\n';
+    var dates = Object.keys(ALL_DATA).sort();
+    dates.forEach(function(date) {
+      var day = ALL_DATA[date];
+      var tw = 0, tr = 0, tp = 0;
+      (day.m1.batches || []).forEach(function(b) {
+        var wj = (b.weight_kg || 0) * 2, tj = (b.tare_kg || 0) * 2, r = wj - tj;
+        tw += wj; tr += r; tp += r * (b.unit_price || 0);
+      });
+      var sj = (day.m2.sub_kg || 0) * 2, st = sj * (day.m2.sub_price || 0);
+      var gw = tr - sj, gp = gw > 0 ? (tp - st) / gw : 0;
+      var sr_rate = tr > 0 ? sj / tr : 0;
+
+      var inc = 0;
+      (day.m4.incomes || []).forEach(function(x) { inc += x.amount || 0; });
+      var exp = tp + (day.m4.loading || 0) + (day.m4.labor || 0) + (day.m4.packaging || 0) + (day.m4.collab || 0) + (day.m4.aftersale || 0);
+      var flow = inc - exp;
+
+      var i9 = 0, i5 = 0, o9 = 0, o5 = 0;
+      (day.m3.batches || []).forEach(function(b) {
+        if (b.direction === 'in') { if (b.size === '9') i9 += b.qty || 0; else if (b.size === '5') i5 += b.qty || 0; }
+        else { if (b.size === '9') o9 += b.qty || 0; else if (b.size === '5') o5 += b.qty || 0; }
+      });
+      var denom = i9 * 8.5 + i5 * 4.5;
+      var labor = day.m4.labor || 0;
+      var c9t = 8.5 * gp + (i9 > 0 && denom > 0 ? (labor * (i9 * 8.5 / denom)) / i9 : 0) + (day.m6.load9 || 0) + (day.m6.pkg9 || 2.01) + (day.m6.ship9 || 5) + (8.5 * 0.03 * (1 + sr_rate)) + (day.m6.as9 || 0);
+      var c5t = 4.5 * gp + (i5 > 0 && denom > 0 ? (labor * (i5 * 4.5 / denom)) / i5 : 0) + (day.m6.load5 || 0) + (day.m6.pkg5 || 1.54) + (day.m6.ship5 || 3.9) + (4.5 * 0.03 * (1 + sr_rate)) + (day.m6.as5 || 0);
+      var prof9 = (day.m6.price9 || 19.3) - c9t, prof5 = (day.m6.price5 || 12.8) - c5t;
+
+      csv += [date, tp.toFixed(2), gp.toFixed(2), (sr_rate*100).toFixed(1)+'%', inc.toFixed(2), exp.toFixed(2), flow.toFixed(2), prof9.toFixed(2), prof5.toFixed(2), i9, i5, o9, o5].join(',') + '\n';
+    });
+  } else {
+    // 导出当天（完整底表格式）
+    var m1 = calcM1(), m2 = calcM2(), m3 = calcM3(), m4 = calcM4(), m5 = calcM5(), m6 = calcM6();
+    csv += '导出日期,' + currentDate + '\n\n=== 模块一：水果重量与总价 ===\n批次,原果桶数,原果重量(公斤),原果单价(元/斤),应去皮重(公斤),原果重量(斤),应去皮重(斤),水果真实重量(斤),水果真实总价(元)\n';
+    (DATA.m1.batches||[]).forEach(function(b,i) { var wj=(b.weight_kg||0)*2,tj=(b.tare_kg||0)*2,rw=wj-tj,tp=rw*(b.unit_price||0); csv+=(i+1)+','+(b.barrels||0)+','+(b.weight_kg||0)+','+(b.unit_price||0)+','+(b.tare_kg||0)+','+wj.toFixed(2)+','+tj.toFixed(2)+','+rw.toFixed(2)+','+tp.toFixed(2)+'\n'; });
+    csv+='合计,,,,,,'+m1.total_weight_jin.toFixed(2)+',,'+m1.total_real_weight.toFixed(2)+','+m1.total_price.toFixed(2)+'\n\n=== 模块二：好果单价 ===\n次果量(公斤),'+(DATA.m2.sub_kg||0)+'\n次果回收单价,'+(DATA.m2.sub_price||0)+'\n次果量(斤),'+m2.sub_jin.toFixed(2)+'\n次果回收总价,'+m2.sub_total.toFixed(2)+'\n次果率,'+(m2.sub_rate*100).toFixed(2)+'%\n好果单价,'+m2.good_price.toFixed(4)+'\n9斤箱原果单箱价格,'+m2.box9_price.toFixed(2)+'\n5斤箱原果单箱价格,'+m2.box5_price.toFixed(2)+'\n\n=== 模块三：出入库 ===\n批次,方向,规格,数量\n';
+    (DATA.m3.batches||[]).forEach(function(b,i){ csv+=(i+1)+','+(b.direction==='in'?'入库':'出库')+','+(b.size==='9'?'9斤箱':b.size==='5'?'5斤箱':'试吃装')+','+(b.qty||0)+'\n'; });
+    csv+='入库9斤箱合计,'+m3.in9+'\n入库5斤箱合计,'+m3.in5+'\n入库试吃装合计,'+m3.inSample+'\n出库9斤箱合计,'+m3.out9+'\n出库5斤箱合计,'+m3.out5+'\n出库试吃装合计,'+m3.outSample+'\n\n=== 模块四：现金收支 ===\n收入笔数,金额,备注\n';
+    (DATA.m4.incomes||[]).forEach(function(inc,i){ csv+=(i+1)+','+(inc.amount||0).toFixed(2)+','+(inc.note||'')+'\n'; });
+    csv+='收入合计,'+m4.totalIncome.toFixed(2)+'\n水果成本,'+m4.fruitCost.toFixed(2)+'\n打单装卸费,'+(DATA.m4.loading||0)+'\n人工费,'+(DATA.m4.labor||0)+'\n包材费,'+(DATA.m4.packaging||0)+'\n协作费,'+(DATA.m4.collab||0)+'\n售后费,'+(DATA.m4.aftersale||0)+'\n支出合计,'+m4.totalExpense.toFixed(2)+'\n现金流,'+m4.cashFlow.toFixed(2)+'\n\n=== 模块五：包材明细 ===\n日期,时间,账目,采购量,总价,单价\n';
+    Object.keys(ALL_DATA).forEach(function(date) { var day=ALL_DATA[date]; (day.m5.records||[]).forEach(function(r) { csv+=date+','+(r.time||'-')+','+r.type+','+(r.qty||0).toFixed(2)+','+(r.total_price||0).toFixed(2)+','+(r.qty>0?(r.total_price/r.qty).toFixed(4):'-')+'\n'; }); });
+    csv+='累计采购量,'+m5.totalQty.toFixed(2)+'\n累计采购总价,'+m5.totalPrice.toFixed(2)+'\n\n=== 模块六：毛利核算 ===\n项目,9斤箱,5斤箱\n';
+    csv+='单箱原果成本,'+m6.cost9_orig.toFixed(2)+','+m6.cost5_orig.toFixed(2)+'\n单箱人工成本,'+m6.cost9_labor.toFixed(2)+','+m6.cost5_labor.toFixed(2)+'\n单箱装卸费,'+m6.cost9_load.toFixed(2)+','+m6.cost5_load.toFixed(2)+'\n单箱包材费,'+m6.cost9_pkg.toFixed(2)+','+m6.cost5_pkg.toFixed(2)+'\n单箱快递费,'+m6.cost9_ship.toFixed(2)+','+m6.cost5_ship.toFixed(2)+'\n单箱协助费,'+m6.cost9_collab.toFixed(2)+','+m6.cost5_collab.toFixed(2)+'\n单箱售后费,'+m6.cost9_as.toFixed(2)+','+m6.cost5_as.toFixed(2)+'\n总成本,'+m6.cost9_total.toFixed(2)+','+m6.cost5_total.toFixed(2)+'\n售价,'+m6.price9.toFixed(2)+','+m6.price5.toFixed(2)+'\n毛利,'+m6.profit9.toFixed(2)+','+m6.profit5.toFixed(2)+'\n';
+  }
+
+  var blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
+  var a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = allDates ? '水果进销存_全部历史.csv' : '水果进销存_' + currentDate + '.csv';
+  a.click();
+  showToast(allDates ? '全部历史数据下载中...' : '当日底表下载中...');
+}
+
+// ==================== Tab切换 ====================
+document.getElementById('tabBar').addEventListener('click', function(e) {
+  if (e.target.tagName === 'BUTTON') {
+    // 先保存当前模块
+    syncM4Inputs(); syncM6Inputs();
+    var curModule = getCurrentModuleFromUI();
+    saveModule(curModule);
+
+    document.querySelectorAll('#tabBar button').forEach(function(b) { b.classList.remove('active'); });
+    e.target.classList.add('active');
+    document.querySelectorAll('.section').forEach(function(s) { s.classList.remove('active'); });
+    document.getElementById('sec-' + e.target.dataset.tab).classList.add('active');
+    if (e.target.dataset.tab === 'm7') renderM7();
+  }
+});
+
+// ==================== Toast ====================
+function showToast(msg) {
+  var t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._tid); t._tid = setTimeout(function() { t.classList.remove('show'); }, 1500);
+}
+
+// ==================== 设置面板 ====================
+function showSettings() {
+  document.getElementById('settingsModal').style.display = 'flex';
+  var cfg = getConfig();
+  document.getElementById('cfgUrl').value = cfg.url || '';
+  document.getElementById('cfgKey').value = cfg.key || '';
+}
+
+function closeSettings() {
+  document.getElementById('settingsModal').style.display = 'none';
+}
+
+async function saveSettings() {
+  var url = document.getElementById('cfgUrl').value.trim();
+  var key = document.getElementById('cfgKey').value.trim();
+  if (url && key) {
+    saveConfig({ url: url, key: key });
+    initSupabase();
+    closeSettings();
+    showToast('已配置云同步，正在连接...');
+    // 断开旧 Realtime
+    if (realtimeChannel) { try { supabase.removeChannel(realtimeChannel); } catch(e) {} }
+    await fullSync();
+    showToast('云同步就绪');
+  } else {
+    saveConfig({});
+    supabase = null; syncMode = 'local';
+    if (realtimeChannel) { try { supabase.removeChannel(realtimeChannel); } catch(e) {} realtimeChannel = null; }
+    closeSettings();
+    loadLocal();
+    currentDate = todayStr();
+    if (!ALL_DATA[currentDate]) ALL_DATA[currentDate] = getDefaultDayData();
+    DATA = ALL_DATA[currentDate];
+    setSyncStatus('offline', '本机存储模式');
+    renderAll();
+    showToast('已切回本机存储');
+  }
+}
+
+// ==================== 初始化 ====================
+(function init() {
+  // 检查 supabase.js 是否加载
+  if (typeof window.supabase === 'undefined') {
+    setSyncStatus('error', 'Supabase SDK 未加载，使用本地存储');
+    syncMode = 'local';
+  } else {
+    initSupabase();
+  }
+
+  // 先读本地缓存（秒开）
+  var hasLocal = loadLocal();
+  currentDate = todayStr();
+  if (!ALL_DATA[currentDate]) ALL_DATA[currentDate] = getDefaultDayData();
+  DATA = ALL_DATA[currentDate];
+  renderAll();
+  if (hasLocal) {
+    setSyncStatus('offline', '本地缓存已加载');
+  }
+
+  // 异步连接云端
+  if (syncMode === 'cloud' && supabase) {
+    loadFromSupabase().then(function(ok) {
+      if (ok) {
+        currentDate = todayStr();
+        if (!ALL_DATA[currentDate]) ALL_DATA[currentDate] = getDefaultDayData();
+        DATA = ALL_DATA[currentDate];
+        renderAll();
+        setSyncStatus('online', '云同步已连接');
+        subscribeRealtime();
+      } else {
+        setSyncStatus('error', '云端连接失败，使用本地缓存');
+      }
+    });
+  }
+})();
+</script>
+</body>
+</html>
