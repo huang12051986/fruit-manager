@@ -252,10 +252,9 @@ input[readonly] { background:var(--calc); color:var(--pri-d); font-weight:600; }
 </div>
 
 <script>
-// 调试：JS错误显示在页面上
+// 调试：JS错误显示在页面上（忽略跨域Script error）
 window.onerror = function(msg, src, line, col, err) {
-  var badge = document.getElementById('syncBadge');
-  if (badge) badge.innerHTML = '<span style="color:#f44336;font-size:11px;">JS Error: ' + msg + ' (line ' + line + ')</span>';
+  if (msg === 'Script error.' || msg === 'Script error') return true;
   var lbl = document.getElementById('syncLabel');
   if (lbl) lbl.textContent = 'JS Error: ' + msg;
 };
@@ -1096,6 +1095,7 @@ async function saveSettings() {
   // 动态加载 Supabase SDK，5 秒超时
   var script = document.createElement('script');
   script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
+  script.crossOrigin = 'anonymous';
   script.async = true;
 
   var sdkLoaded = false;
