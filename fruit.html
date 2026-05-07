@@ -251,7 +251,6 @@ input[readonly] { background:var(--calc); color:var(--pri-d); font-weight:600; }
   </div>
 </div>
 
-<script src="supabase.js"></script>
 <script>
 // 调试：JS错误显示在页面上
 window.onerror = function(msg, src, line, col, err) {
@@ -1086,39 +1085,60 @@ async function saveSettings() {
 
 // ==================== 初始化 ====================
 (function init() {
-  // 检查 supabase.js 是否加载
-  if (typeof window.supabase === 'undefined') {
-    setSyncStatus('error', 'Supabase SDK 未加载，使用本地存储');
-    syncMode = 'local';
-  } else {
-    initSupabase();
-  }
-
-  // 先读本地缓存（秒开）
+  // 先读本地缓存（秒开，不等待任何网络）
   var hasLocal = loadLocal();
   currentDate = todayStr();
   if (!ALL_DATA[currentDate]) ALL_DATA[currentDate] = getDefaultDayData();
   DATA = ALL_DATA[currentDate];
   renderAll();
-  if (hasLocal) {
-    setSyncStatus('offline', '本地缓存已加载');
-  }
+  setSyncStatus('offline', hasLocal ? '本地缓存已加载' : '新的一天');
 
-  // 异步连接云端
-  if (syncMode === 'cloud' && supabase) {
-    loadFromSupabase().then(function(ok) {
-      if (ok) {
-        currentDate = todayStr();
-        if (!ALL_DATA[currentDate]) ALL_DATA[currentDate] = getDefaultDayData();
-        DATA = ALL_DATA[currentDate];
-        renderAll();
-        setSyncStatus('online', '云同步已连接');
-        subscribeRealtime();
-      } else {
-        setSyncStatus('error', '云端连接失败，使用本地缓存');
+  // 动态加载 Supabase SDK，5 秒超时
+  var script = document.createElement('script');
+  script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
+  script.async = true;
+
+  var sdkLoaded = false;
+  var sdkTimeout = false;
+
+  script.onload = function() {
+    sdkLoaded = true;
+    if (sdkTimeout) return;
+    initSupabase();
+    if (syncMode === 'cloud' && supabase) {
+      setSyncStatus('offline', '正在连接云端...');
+      loadFromSupabase().then(function(ok) {
+        if (ok) {
+          currentDate = todayStr();
+          if (!ALL_DATA[currentDate]) ALL_DATA[currentDate] = getDefaultDayData();
+          DATA = ALL_DATA[currentDate];
+          renderAll();
+          setSyncStatus('online', '云同步已连接');
+          subscribeRealtime();
+        } else {
+          setSyncStatus('error', '云端连接失败，使用本地缓存');
+        }
+      });
+    }
+  };
+
+  script.onerror = function() {
+    sdkLoaded = false;
+    setSyncStatus('error', 'CDN 加载失败，使用本地存储');
+  };
+
+  document.head.appendChild(script);
+
+  // 5 秒超时降级
+  setTimeout(function() {
+    if (!sdkLoaded) {
+      sdkTimeout = true;
+      initSupabase(); // 再试一次（可能 window.supabase 存在）
+      if (syncMode !== 'cloud' || !supabase) {
+        setSyncStatus('offline', '本机存储模式（离线）');
       }
-    });
-  }
+    }
+  }, 5000);
 })();
 </script>
 </body>
