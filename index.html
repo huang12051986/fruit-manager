@@ -296,8 +296,14 @@ function initSupabase() {
     try {
       supabase = window.supabase.createClient(cfg.url, cfg.key);
       syncMode = 'cloud';
+      setSyncStatus('offline', 'SDK ready, fetching data...');
       return true;
-    } catch(e) { supabase = null; }
+    } catch(e) {
+      setSyncStatus('error', 'SDK init error: ' + e.message);
+      supabase = null;
+    }
+  } else {
+    setSyncStatus('error', 'Config missing: url=' + !!cfg.url + ' key=' + !!cfg.key + ' sdk=' + typeof window.supabase);
   }
   syncMode = 'local';
   return false;
